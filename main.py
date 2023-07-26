@@ -83,7 +83,6 @@ class Application:
 
 
 class DownloadApp:
-
     def __init__(self, downloadWindow, youtubeLink, FolderName, Choices):
         self.downloadWindow = downloadWindow
         self.youtubeLink = youtubeLink
@@ -92,13 +91,34 @@ class DownloadApp:
 
         self.yt = YouTube(self.youtubeLink)
 
+        self.video_type = None
         if Choices == "1":
             self.video_type = self.yt.streams.filter(only_audio=True).first()
+        elif Choices == "2":
+            self.video_type = self.yt.streams.first()
+
+        self.MaxFileSize = None  # Initialize MaxFileSize to None
+
+        # Get the video size if the video_type is available
+        if self.video_type:
             self.MaxFileSize = self.video_type.filesize
 
-        if Choices == "2":
-            self.video_type = self.yt.streams.first()
-            self.MaxFileSize = self.video_type.filesize
+        self.downloadFile()
+
+    def downloadFile(self):
+        # Wait until MaxFileSize is set
+        while self.MaxFileSize is None:
+            time.sleep(0.1)
+
+        try:
+            if self.Choices == "1":
+                self.yt.streams.filter(only_audio=True).first().download(self.FolderName)
+            elif self.Choices == "2":
+                self.yt.streams.first().download(self.FolderName)
+
+            print("Download completed successfully!")
+        except Exception as e:
+            print("An error occurred during the download:", str(e))
 
         self.loading_label = Label(self.downloadWindow, text="Downloading...", font=("Arial", 40))
         self.loading_label.grid(pady=(100, 0))
@@ -106,9 +126,45 @@ class DownloadApp:
         self.loading_percentage = Label(self.downloadWindow, text="0", fg="green", font=("Arial", 40))
         self.loading_percentage.grid(pady=(50, 0))
 
-        self.progressbar = ttk.Progressbar(self.downloadWindow, length=500, orient="horizontal", mode="undetermined")
+        self.progressbar = ttk.Progressbar(self.downloadWindow, length=500, orient="horizontal", mode="indeterminate")
         self.progressbar.grid(pady=(50, 0))
         self.progressbar.start()
+
+        threading.Thread(target=self.yt.register_on_progress_callback(self.show_progress)).start()
+        threading.Thread(target=self.downloadFile).start()
+
+
+    def downloadFile(self):
+        try:
+            if self.Choices == "1":
+                self.yt.streams.filter(only_audio=True).first().download(self.FolderName)
+
+            if self.Choices == "2":
+                self.yt.streams.first().download(self.FolderName)
+
+            print("Download completed successfully!")
+        except Exception as e:
+            print("An error occurred during the download:", str(e))
+
+    def show_progress(self,streams=None, Chunks=None, filehandle=None, bytes_remaining=None):
+        self.percentCount = float("%0.2f" % (100 - (100 * (bytes_remaining / self.MaxFileSize))))
+
+        if self.percentCount < 100:
+            self.loading_percentage.config(text=self.percentCount)
+        else:
+            self.progressbar.stop()
+            self.loading_label.grid_forget()
+            self.progressbar.grid_forget()
+
+            self.downloadFinished = Label(self.downloadWindow,text="Download finished", font=("Arial", 30))
+            self.downloadFinished.grid(pady=(150, 0))
+
+            self.downloadedFileName = Label(self.downloadWindow,text=self.yt.title, font=("Arial", 30))
+            self.downloadedFileName.grid(pady=(50, 0))
+
+            MB = float("%0.2f" % (self.MaxFileSize/1000000))
+            self.downloadedFileSize = Label(self.downloadWindow, text=str(MB), font=("Arial", 30))
+            self.downloadedFileSize.grid(pady=(50, 0))
 
 
 
