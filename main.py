@@ -4,6 +4,7 @@ from tkinter import ttk
 from tkinter import *
 import re
 import threading
+import time
 
 
 class Application:
